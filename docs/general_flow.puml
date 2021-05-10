@@ -1,0 +1,28 @@
+@startuml
+
+skinparam responseMessageBelowArrow true
+
+actor Browser as client
+participant Server as server
+database Postgres as db
+queue NATS as nats
+
+client -> server : Login
+server --> client : Loged
+
+client -> server : Get last 50 messages
+server -> db : Retrieve last 50 messages
+db --> server : Last 50 messages
+server --> client : Last 50 messages
+
+client -> server : Establish websocket
+group Websocket
+client -> server : Send message
+server -> db : Store message
+server -> nats : Publish message in broker
+nats --> server : Send message to subscriber
+server --> client : Message (to all subscribers)
+
+end
+
+@enduml

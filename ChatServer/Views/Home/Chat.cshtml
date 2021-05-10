@@ -1,0 +1,26 @@
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+@section Styles {
+<link rel="stylesheet" href="~/css/chat.css" />
+}
+@section Scripts {
+<script src="~/js/chat.js"></script>
+}
+
+<div class="text-center">
+    <h1 class="display-4">Chat</h1>
+    <ul class="text-left" id="msgList">
+        <li>Fernando: Olá, Mundo!</li>
+        <li>Fernando: /stock=appl.us</li>
+        <li>Bot: APPL.US quote is $93.42 per share</li>
+    </ul>
+    <div class="input-group mb-3">
+        <input type="hidden" id="author" value="@User.Identity.Name" />
+        <input type="text" class="form-control" placeholder="Type your message" id="txtMessage" />
+        <div class="input-group-append">
+            <button class="btn btn-outline-primary" type="button" id="btnSend">Send</button>
+        </div>
+    </div>
+</div>
