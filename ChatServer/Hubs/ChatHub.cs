@@ -3,10 +3,13 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Channels;
 using System.Net.WebSockets;
 
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Confluent.Kafka;
 
 using ChatServer.Models;
 
@@ -14,42 +17,105 @@ namespace ChatServer.Hubs
 {
     public class ChatHub
     {
-        private IModel _channel;
+        // private IModel _channel;
+        private IProducer<Null, string> _producer;
 
         private Dictionary<string, WebSocket> webSockets;
+
+        private string bootstrapServers = "localhost:9092";
+        private string topicProduced = "chat.stock";
+        private string topicConsumed = "chat.msgs";
 
         public ChatHub()
         {
             webSockets = new Dictionary<string, WebSocket>();
 
-            var factory = new ConnectionFactory()
+            Task.Run(() => SetupKafka());
+            // SetupKafka();
+
+            // var factory = new ConnectionFactory()
+            // {
+            //     HostName = "localhost",
+            // };
+            // var connection = factory.CreateConnection();
+            // _channel = connection.CreateModel();
+
+            // _channel.ExchangeDeclare(exchange: "msgs", type: "topic");
+            // var queueName = _channel.QueueDeclare().QueueName;
+
+            // _channel.QueueBind(
+            //     queue: queueName,
+            //     exchange: "msgs",
+            //     routingKey: "chat.msgs"
+            // );
+
+
+            // var consumer = new EventingBasicConsumer(_channel);
+            // consumer.Received += (model, ea) =>
+            // {
+            //     var message = Encoding.UTF8.GetString(ea.Body.ToArray());
+            //     this.SendMessage(new ChatMessage(
+            //         "Bot",
+            //         message
+            //     ), WebSocketMessageType.Text, false);
+            // };
+
+            // _channel.BasicConsume(queue: queueName, autoAck: true, consumer: consumer);
+        }
+
+        private async void SetupKafka()
+        {
+
+
+            var producerConfig = new ProducerConfig
             {
-                HostName = "localhost",
+                BootstrapServers = bootstrapServers
             };
-            var connection = factory.CreateConnection();
-            _channel = connection.CreateModel();
-
-            _channel.ExchangeDeclare(exchange: "msgs", type: "topic");
-            var queueName = _channel.QueueDeclare().QueueName;
-
-            _channel.QueueBind(
-                queue: queueName,
-                exchange: "msgs",
-                routingKey: "chat.msgs"
-            );
-
-
-            var consumer = new EventingBasicConsumer(_channel);
-            consumer.Received += (model, ea) =>
+            var consumerConfig = new ConsumerConfig
             {
-                var message = Encoding.UTF8.GetString(ea.Body.ToArray());
-                this.SendMessage(new ChatMessage(
-                    "Bot",
-                    message
-                ), WebSocketMessageType.Text, false);
+                BootstrapServers = bootstrapServers,
+                GroupId = $"{topicConsumed}-group-0",
+                AutoOffsetReset = AutoOffsetReset.Earliest
             };
 
-            _channel.BasicConsume(queue: queueName, autoAck: true, consumer: consumer);
+            CancellationTokenSource cts = new CancellationTokenSource();
+            Console.CancelKeyPress += (_, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
+
+            _producer = new ProducerBuilder<Null, string>(producerConfig).Build();
+
+            try
+            {
+                using (var consumer = new ConsumerBuilder<Ignore, string>(consumerConfig).Build())
+                {
+                    consumer.Subscribe(topicConsumed);
+
+                    try
+                    {
+                        while (true)
+                        {
+                            var cr = consumer.Consume(cts.Token);
+
+                            SendMessage(new ChatMessage(
+                                author: "Bot",
+                                text: cr.Message.Value
+                            ), WebSocketMessageType.Text, true);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        consumer.Close();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exceção: {ex.GetType().FullName} | " +
+                    $"Mensagem: {ex.Message}");
+            }
         }
 
         public async void SendMessage(ChatMessage msg, WebSocketMessageType messageType, bool endOfMessage)
@@ -57,11 +123,12 @@ namespace ChatServer.Hubs
             var match = Regex.Match(msg.text, @"\/stock\=(.*)");
             if (match.Success)
             {
-                _channel.BasicPublish(
-                    exchange: "msgs",
-                    routingKey: "chat.stock",
-                    basicProperties: null,
-                    body: Encoding.UTF8.GetBytes(match.Groups[1].Value)
+                var result = await _producer.ProduceAsync(
+                    topicProduced,
+                    new Message<Null, string>
+                    {
+                        Value = match.Groups[1].Value
+                    }
                 );
                 return;
             }
@@ -77,7 +144,7 @@ namespace ChatServer.Hubs
             webSockets.Add(user, ws);
         }
 
-        public async void RemoveWebSocket(string user)
+        public void RemoveWebSocket(string user)
         {
             webSockets.Remove(user);
         }
