@@ -45,7 +45,10 @@ If you didn't manage to finish everything, please tell us which parts you comple
 
 ## Running the project
 
-Have a running RabbitMQ instance with default ports
+Have a running Kafka instance with default ports and with two created topics:
+
+- `chat.stock`
+- `chat.msgs`
 
 Run ChatServer
 ```shell
