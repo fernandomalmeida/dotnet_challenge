@@ -31,42 +31,10 @@ namespace ChatServer.Hubs
             webSockets = new Dictionary<string, WebSocket>();
 
             Task.Run(() => SetupKafka());
-            // SetupKafka();
-
-            // var factory = new ConnectionFactory()
-            // {
-            //     HostName = "localhost",
-            // };
-            // var connection = factory.CreateConnection();
-            // _channel = connection.CreateModel();
-
-            // _channel.ExchangeDeclare(exchange: "msgs", type: "topic");
-            // var queueName = _channel.QueueDeclare().QueueName;
-
-            // _channel.QueueBind(
-            //     queue: queueName,
-            //     exchange: "msgs",
-            //     routingKey: "chat.msgs"
-            // );
-
-
-            // var consumer = new EventingBasicConsumer(_channel);
-            // consumer.Received += (model, ea) =>
-            // {
-            //     var message = Encoding.UTF8.GetString(ea.Body.ToArray());
-            //     this.SendMessage(new ChatMessage(
-            //         "Bot",
-            //         message
-            //     ), WebSocketMessageType.Text, false);
-            // };
-
-            // _channel.BasicConsume(queue: queueName, autoAck: true, consumer: consumer);
         }
 
-        private async void SetupKafka()
+        private void SetupKafka()
         {
-
-
             var producerConfig = new ProducerConfig
             {
                 BootstrapServers = bootstrapServers
