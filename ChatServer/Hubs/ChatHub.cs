@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 using System.Threading.Channels;
 using System.Net.WebSockets;
 
-using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
 using Confluent.Kafka;
 
 using ChatServer.Models;

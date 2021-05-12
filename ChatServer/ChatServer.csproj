@@ -15,7 +15,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="5.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="5.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="5.0.5" />
-    <PackageReference Include="RabbitMQ.Client" Version="6.2.1" />
     <PackageReference Include="Confluent.Kafka" Version="1.7.0-RC4" />
   </ItemGroup>
 
