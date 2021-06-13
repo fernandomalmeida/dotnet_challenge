@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Text;
-using System.Threading;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Confluent.Kafka;
+
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 
 using StockBot.Services;
 
@@ -11,67 +11,74 @@ namespace StockBot
 {
     class Program
     {
+        static private string rabbitMQHostName = "rabbitmq";
+        static private string consumeQueue = "stock_queue";
+        static private string produceQueue = "msgs_queue";
         static async Task Main(string[] args)
         {
-            string bootstrapServers = "localhost:9092";
-            string topicConsumed = "chat.stock";
-            string topicProduced = "chat.msgs";
-
-            var producerConfig = new ProducerConfig
-            {
-                BootstrapServers = bootstrapServers
+            var factory = new ConnectionFactory() {
+                HostName = rabbitMQHostName
             };
-            var consumerConfig = new ConsumerConfig
-            {
-                BootstrapServers = bootstrapServers,
-                GroupId = $"{topicConsumed}-group-0",
-                AutoOffsetReset = AutoOffsetReset.Earliest
-            };
+            var connection = factory.CreateConnection();
+            var channel = connection.CreateModel();
+            channel.QueueDeclare(
+                queue: consumeQueue,
+                durable: false,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null
+            );
+            // channel.BasicQos(0, 1, false);
+            
+            var consumer = new EventingBasicConsumer(channel);
 
-            CancellationTokenSource cts = new CancellationTokenSource();
-            Console.CancelKeyPress += (_, e) =>
-            {
-                e.Cancel = true;
-                cts.Cancel();
-            };
+            channel.BasicConsume(
+                consumer: consumer,
+                queue: consumeQueue,
+                autoAck: true
+            );
 
-            try
+            consumer.Received += (model, ea) =>
             {
-                using (var consumer = new ConsumerBuilder<Ignore, string>(consumerConfig).Build())
+                Console.WriteLine("Message Get " + ea.DeliveryTag);
+                string response = null;
+
+                var body = ea.Body.ToArray();
+                var props = ea.BasicProperties;
+                var replyProps = channel.CreateBasicProperties();
+                replyProps.CorrelationId = props.CorrelationId;
+
+                try
                 {
-                    using (var producer = new ProducerBuilder<Null, string>(producerConfig).Build())
-                    {
-                        consumer.Subscribe(topicConsumed);
-
-                        try
-                        {
-                            while (true)
-                            {
-                                var cr = consumer.Consume(cts.Token);
-
-                                var msg = await StockService.GetStock(cr.Message.Value);
-
-                                var result = await producer.ProduceAsync(
-                                    topicProduced,
-                                    new Message<Null, string>
-                                    {
-                                        Value = msg
-                                    }
-                                );
-                            }
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            consumer.Close();
-                        }
-                    }
+                    var message = Encoding.UTF8.GetString(body);
+                    var t = StockService.GetStock(message);
+                    t.Wait();
+                    
+                    response = t.Result;
                 }
-            }
-            catch (Exception ex)
+                catch (Exception e)
+                {
+                    response = "";
+                }
+                finally
+                {
+                    Console.WriteLine("Reply to: " + produceQueue);
+                    var responseBytes = Encoding.UTF8.GetBytes(response);
+                    channel.BasicPublish(
+                        exchange: "",
+                        routingKey: produceQueue,
+                        body: responseBytes
+                    );
+                }
+            };
+            
+            Console.WriteLine(" Awaiting stock requests");
+
+            while(true)
             {
-                Console.WriteLine($"Exceção: {ex.GetType().FullName} | " +
-                    $"Mensagem: {ex.Message}");
+                // To keep the bot running
             }
+
         }
 
     }

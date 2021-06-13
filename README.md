@@ -45,17 +45,11 @@ If you didn't manage to finish everything, please tell us which parts you comple
 
 ## Running the project
 
-Have a running Kafka instance with default ports and with two created topics:
+To run the project, go to deploy folder and run docker-compose up
 
-- `chat.stock`
-- `chat.msgs`
-
-Run ChatServer
 ```shell
-$ dotnet run --project ChatServer
+$ cd deploy
+$ docker-compose up
 ```
 
-Run StockBot
-```shell
-$ dotnet run --project StockBot
-```
+The command should build both ChatServer and StockBot projects and run both with a rabbitMQ instance.

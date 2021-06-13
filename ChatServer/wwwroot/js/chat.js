@@ -23,7 +23,7 @@ function createChatController() {
         webSocket: undefined,
         state: state,
         startListenWS: function() {
-            this.webSocket = new WebSocket("wss://localhost:5001/ws");
+            this.webSocket = new WebSocket("ws://localhost:80/ws");
 
             this.webSocket.onmessage = function(event) {
                 msg = JSON.parse(event.data);
@@ -61,7 +61,7 @@ function addMessage(msg) {
 }
 
 function addMessages() {
-    fetch("https://localhost:5001/messages")
+    fetch("http://localhost:80/messages")
         .then(function(response) {
             return response.json()
         })
